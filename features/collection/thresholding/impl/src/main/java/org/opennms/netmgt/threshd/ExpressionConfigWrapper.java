@@ -41,6 +41,7 @@ import org.apache.commons.jexl2.MapContext;
 import org.opennms.core.rpc.utils.mate.EmptyScope;
 import org.opennms.core.rpc.utils.mate.Interpolator;
 import org.opennms.core.rpc.utils.mate.Scope;
+import org.opennms.core.utils.jexl.OnmsJexlEngine;
 import org.opennms.netmgt.config.threshd.Expression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,13 +57,17 @@ public class ExpressionConfigWrapper extends BaseThresholdDefConfigWrapper {
 
     private final Expression m_expression;
     private final Collection<String> m_datasources;    
-    private final JexlEngine jexlEngine = new JexlEngine();
-    
+    private final OnmsJexlEngine jexlEngine;
+
     public ExpressionConfigWrapper(Expression expression) throws ThresholdExpressionException {
         super(expression);
         m_expression = expression;
 
-        m_datasources = new ArrayList<>();
+        jexlEngine = new OnmsJexlEngine();
+        jexlEngine.white(HashMap.class.getName());
+        jexlEngine.white(MathBinding.class.getName());
+
+        m_datasources = new ArrayList<String>();
         try {
             // We need to remove any mate data that are part of the expression before we try to find the datasources so
             // we will interpolate with an empty scope and rely on default values to keep the expression valid
@@ -159,7 +164,7 @@ public class ExpressionConfigWrapper extends BaseThresholdDefConfigWrapper {
         double result;
         try {
             // Fetch an instance of the JEXL script engine to evaluate the script expression
-            Object resultObject = jexlEngine.createExpression(expression).evaluate(new MapContext(context));
+            Object resultObject = jexlEngine.createExpression(m_expression.getExpression()).evaluate(new MapContext(context));
             result = Double.parseDouble(resultObject.toString());
         } catch (Throwable e) {
             throw new ThresholdExpressionException("Error while evaluating expression " + m_expression.getExpression() + ": " + e.getMessage(), e);
